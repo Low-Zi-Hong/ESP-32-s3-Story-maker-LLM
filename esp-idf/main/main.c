@@ -166,16 +166,6 @@ static void generate(const char* prompt) {
                 generated, dt / 1000.0f, generated * 1000.0f / dt);
 }
 
-#include "freertos/task.h"
-//for watchdog...
-void disable_cpu1_watchdog() {
-    TaskHandle_t idle_1_handle = xTaskGetIdleTaskHandleForCore(1);  // get core 1 idle task
-    
-    if (idle_1_handle != NULL) {
-        esp_task_wdt_delete(idle_1_handle);     // delete task from watchdog tasklist
-    }
-}
-
 void serial_ui_task(void *pvParameters) {
     char line[256];
     int pos = 0;
@@ -226,7 +216,6 @@ void serial_ui_task(void *pvParameters) {
                         printf("commands: /temp /topp /len /stats\n");
                     }
                 } else {
-                    //disable_cpu1_watchdog();
                     generate(line);
                 }
 
