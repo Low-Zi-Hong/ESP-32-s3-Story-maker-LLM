@@ -360,17 +360,44 @@ int llm_encode(LLM* m, const char* text, int bos, int eos, int* tokens, int max)
     int sp = str_lookup(" ");
     if (sp >= 0 && n < max) tokens[n++] = sp;  /* dummy prefix space */
   }
+  /* special-token pre-pass: user-defined <...> symbols encode atomically */
+  static int spec_ids[16]; static int spec_n = -1;
+  if (spec_n < 0) {
+    spec_n = 0;
+    for (int i = 3; i < g_vocab && spec_n < 16; i++) {
+      const char* sp = g_pieces[i]; size_t L = strlen(sp);
+      if (L > 3 && sp[0] == '<' && sp[L-1] == '>' && strncmp(sp, "<0x", 3) != 0)
+        spec_ids[spec_n++] = i;
+    }
+  }
   /* UTF-8 aware: accumulate bytes of a codepoint, then lookup */
   size_t blen = 0;
-  for (const char* c = text; *c; c++) {
-    if ((*c & 0xC0) != 0x80) blen = 0;           /* not a continuation byte */
+  for (const char* c = text; *c; ) {
+    if ((*c & 0xC0) != 0x80) {
+      blen = 0;
+      int sm = -1;
+      for (int si = 0; si < spec_n; si++) {
+        size_t L = strlen(g_pieces[spec_ids[si]]);
+        if (strncmp(c, g_pieces[spec_ids[si]], L) == 0) { sm = si; break; }
+      }
+      if (sm >= 0) {
+        if (n < max) tokens[n++] = spec_ids[sm];
+        c += strlen(g_pieces[spec_ids[sm]]);
+        continue;
+      }
+    }
     buf[blen++] = *c; buf[blen] = '\0';
-    if ((*(c+1) & 0xC0) == 0x80 && blen < 4) continue;
+    if ((*(c+1) & 0xC0) == 0x80 && blen < 4) { c++; continue; }
     int id = str_lookup(buf);
     if (id != -1) { if (n < max) tokens[n++] = id; }
-    else for (size_t i = 0; i < blen; i++)        /* byte fallback */
-      if (n < max) tokens[n++] = (unsigned char)buf[i] + 3;
+    else for (size_t i = 0; i < blen; i++) {      /* byte fallback */
+      char bp[8]; snprintf(bp, sizeof bp, "<0x%02X>", (unsigned char)buf[i]);
+      int bid = str_lookup(bp);
+      if (bid < 0) bid = (unsigned char)buf[i] + 3; /* legacy layout */
+      if (n < max) tokens[n++] = bid;
+    }
     blen = 0;
+    c++;
   }
   /* merge loop */
   while (1) {

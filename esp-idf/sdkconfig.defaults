@@ -1,0 +1,29 @@
+# sdkconfig.defaults — ESP32-S3 storyteller, IDF port
+# Pins the build to the same memory config the Arduino core (qio_opi
+# variant) uses, so tok/s comparisons are apples-to-apples.
+# Benchmark bar: ~1.4 tok/s (Arduino baseline, single board).
+
+CONFIG_IDF_TARGET="esp32s3"
+
+# Flash: 16MB, QIO @ 80MHz
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_ESPTOOLPY_FLASHMODE_QIO=y
+CONFIG_ESPTOOLPY_FLASHFREQ_80M=y
+
+# PSRAM: octal (OPI) @ 80MHz, 8MB
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_SPEED_80M=y
+
+# Partition table: the repo's model-partition layout
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+# Compiler: -O2 (the 0.56 -> 0.84 finding, made default)
+CONFIG_COMPILER_OPTIMIZATION_PERF=y
+
+# Task watchdog: off at config level (replaces esp_task_wdt_deinit hack)
+CONFIG_ESP_TASK_WDT_INIT=n
+
+# Console on USB-serial stays at IDF defaults; CPU 240MHz
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
